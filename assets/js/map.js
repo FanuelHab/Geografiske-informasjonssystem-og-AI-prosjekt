@@ -38,8 +38,16 @@ function searouteApiUrl(path) {
 
 class MapApp {
   constructor() {
-    this.NORWAY_CENTER = [62, 10];
+    this.NORWAY_CENTER = [64.5, 11];
     this.DEFAULT_ZOOM = 5;
+    this.DEFAULT_VIEW_BOUNDS = L.latLngBounds(
+      [57.4, 2.0],
+      [71.8, 33.5]
+    );
+    this.REGIONAL_MAX_BOUNDS = L.latLngBounds(
+      [49.0, -15.0],
+      [83.5, 42.0]
+    );
 
     this.filterDistanceKm = 100;
     this.activeFilterCenter = null;
@@ -51,11 +59,13 @@ class MapApp {
     this.map = this.initMap();
     this.baseLayers = this.initBaseLayers();
     this.nodhavnLayer = createNodhavnGeoJSONLayer();
+    this.farlederLayer = createFarlederLayer();
     this.kommunerLayer = createKommunerLayer();
     this.externalLayer = createExternalLayer();
 
     this.initLayerControls();
     this.initUI();
+    this.centerMapOnUserLocation();
   }
 
   // ---------------- MAP ----------------
@@ -65,8 +75,16 @@ class MapApp {
       wheelDebounceTime: 80,
       zoomSnap: 1,
       zoomDelta: 1,
-      zoomControl: false
+      zoomControl: false,
+      minZoom: 3,
+      maxBounds: this.REGIONAL_MAX_BOUNDS,
+      maxBoundsViscosity: 0.7
     }).setView(this.NORWAY_CENTER, this.DEFAULT_ZOOM);
+
+    map.fitBounds(this.DEFAULT_VIEW_BOUNDS, {
+      animate: false,
+      padding: [20, 20]
+    });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -96,11 +114,12 @@ class MapApp {
     }
 
     this.nodhavnLayer.addTo(this.map);
-    this.kommunerLayer.addTo(this.map);
+    this.farlederLayer.addTo(this.map);
     this.nodhavnLayer.bringToFront();
 
     const overlays = {
       'Nødhavn (søkeresultat)': this.nodhavnLayer,
+      'Farleder': this.farlederLayer,
       'Kommunegrenser': this.kommunerLayer,
       'Eksternt lag (OGC)': this.externalLayer
     };
@@ -380,10 +399,27 @@ class MapApp {
     this.updateHint('Alle nødhavn i Norge vises. Bruk søkefunksjonen for å filtrere.');
   }
 
+  centerMapOnUserLocation() {
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        this.map.setView([lat, lng], 8);
+      },
+      () => {
+        // Behold standardutsnittet hvis posisjon ikke er tilgjengelig.
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+    );
+  }
+
   // ---------------- UI ----------------
   initUI() {
     this.filterBtn = document.getElementById('filter-btn');
-    this.closestBtn = document.getElementById('closest-btn');
     this.resetBtn = document.getElementById('reset-btn');
     this.filterHint = document.getElementById('filter-hint');
     this.filterDistanceInput = document.getElementById('filter-distance');
@@ -413,14 +449,6 @@ class MapApp {
 
       updateDistanceDisplay();
       this.filterDistanceKm = Number(this.filterDistanceInput.value) || 100;
-    }
-
-    if (this.closestBtn) {
-      this.closestBtn.addEventListener('click', () => {
-        this.setHintHasResults(false);
-        this.updateHint('Klikk på kartet for å finne nærmeste nødhavn.');
-        this.setMapClickHandler((e) => this.handleClosestClick(e.latlng));
-      });
     }
 
     if (this.filterBtn) {

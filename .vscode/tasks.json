@@ -3,8 +3,9 @@
   "tasks": [
     {
       "label": "Dev: sjøroute-backend (Python + Node)",
-      "type": "shell",
-      "command": "npm run dev",
+      "type": "process",
+      "command": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VisualStudio\\NodeJs\\npm.cmd",
+      "args": ["run", "dev"],
       "options": {
         "cwd": "${workspaceFolder}"
       },
