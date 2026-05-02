@@ -19,23 +19,42 @@
   <aside id="search-panel">
     <header class="panel-header">
       <div class="panel-logo">
-        <span class="logo-icon">⚓</span>
-        <div>
+        <span class="logo-icon" aria-hidden="true">⚓</span>
+        <div class="panel-title-block">
           <h1>Nødhavner i Norge</h1>
-          <p class="panel-tagline">Finn nærmeste nødhavn langs kysten</p>
+          <p class="panel-tagline">Finn nærmeste havn langs kysten</p>
         </div>
       </div>
-      <button type="button" id="legend-help-btn" class="legend-help-btn" aria-label="Hva betyr fargene?">i</button>
+      <button type="button" id="legend-help-btn" class="legend-help-btn" aria-expanded="false" aria-controls="legend-popover" title="Forklaring av havnekategorier">?</button>
     </header>
 
-    <div id="legend-popover" class="legend-popover" hidden>
+    <div id="legend-popover" class="legend-drawer" role="region" aria-label="Kategorier" hidden>
+      <p class="legend-drawer-title">Havnekategorier på kartet</p>
       <ul class="legend-list">
-        <li><span class="legend-dot" style="background:#c0392b"></span> <strong>K1:</strong> Største fartøy – 330 m</li>
-        <li><span class="legend-dot" style="background:#27ae60"></span> <strong>K2:</strong> Fartøy &gt;5000 BT – 200 m</li>
-        <li><span class="legend-dot" style="background:#8e44ad"></span> <strong>K3:</strong> Mindre fartøy – 120 m</li>
-        <li><span class="legend-dot" style="background:#3388ff"></span> Annen/ukjent kategori</li>
+        <li><span class="legend-dot" style="background:#c0392b"></span> <span><strong>K1</strong> — største fartøy, inntil 330 m</span></li>
+        <li><span class="legend-dot" style="background:#27ae60"></span> <span><strong>K2</strong> — fartøy over 5000 BT, inntil 200 m</span></li>
+        <li><span class="legend-dot" style="background:#8e44ad"></span> <span><strong>K3</strong> — mindre fartøy, inntil 120 m</span></li>
+        <li><span class="legend-dot" style="background:#3388ff"></span> <span><strong>Annet</strong> — ukjent eller annen kategori</span></li>
       </ul>
     </div>
+
+    <!-- Vessel length → harbor category filter -->
+    <section class="panel-section">
+      <h2>Fartøystørrelse</h2>
+      <div class="slider-row">
+        <label for="vessel-length-input">Lengde (LOA, m)</label>
+        <input type="number" id="vessel-length-input" min="1" max="330" step="1" placeholder="Maks 330 m · f.eks. 180" inputmode="decimal">
+      </div>
+      <div class="vessel-actions">
+        <button type="button" id="vessel-filter-btn" class="btn btn-secondary">
+          Vis egnede havner
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost">
+          Vis alle nødhavner
+        </button>
+      </div>
+      <p class="section-hint">K1–K3 ≈ 330/200/120 m. Maks 330 m. Ukategoriserte havner vises alltid.</p>
+    </section>
 
     <!-- Position -->
     <section class="panel-section panel-section-primary">
@@ -44,7 +63,7 @@
         <span class="btn-icon">📍</span>
         Bruk posisjonen min
       </button>
-      <p class="section-hint">Innen 100 km radius. Krever tillatelse til posisjon.</p>
+      <p class="section-hint">Radius som på glidebryteren. Krever posisjonstillatelse.</p>
     </section>
 
     <!-- Radius filter -->
@@ -62,7 +81,7 @@
         Finn nødhavner rundt punkt
       </button>
 
-      <p class="section-hint">Klikk på kartet der du vil søke fra.</p>
+      <p class="section-hint">Klikk i kartet for søkepunkt (markøren kan dras).</p>
     </section>
 
     <!-- Status -->
@@ -70,10 +89,6 @@
       <p id="filter-hint">
         Klikk på en av knappene over for å finne nødhavner.
       </p>
-
-      <button type="button" id="reset-btn" class="btn btn-ghost">
-        Vis alle nødhavner
-      </button>
     </section>
 
     <button type="button" id="panel-toggle" class="panel-toggle" aria-label="Åpne/lukke meny">
@@ -83,6 +98,8 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Turf.js (@turf/turf): point-in-polygon analysis for kommune choropleth (GIS assignment). Global: turf -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.2.0/turf.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script src="assets/js/supabase.js"></script>
@@ -98,13 +115,16 @@
 
       if (btn && popover) {
         btn.addEventListener('click', function () {
-          popover.hidden = !popover.hidden;
+          var open = popover.hidden;
+          popover.hidden = !open;
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
 
         document.addEventListener('click', function (e) {
           if (popover.hidden) return;
           if (!popover.contains(e.target) && !btn.contains(e.target)) {
             popover.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
           }
         });
       }

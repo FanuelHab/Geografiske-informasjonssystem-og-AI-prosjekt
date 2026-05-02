@@ -1,11 +1,8 @@
-/**
+﻿/**
  * Når siden kjører på Live Server (f.eks. 5500) og API på 3000, må vi bruke full URL.
  * Samme hostname som siden (localhost vs 127.0.0.1 vs ::1) unngår rare tilkoblingsfeil.
  * Override: window.__SEAROUTE_API_BASE__ = 'http://127.0.0.1:3000'
  */
-/** Maks LOA brukeren kan angi — samme tak som K1 (330 m) i nødhavn-regelverket i appen. */
-const VESSEL_INPUT_MAX_M = 330;
-
 function searouteApiUrl(path) {
   if (typeof window === 'undefined') return path;
   const override = window.__SEAROUTE_API_BASE__;
@@ -58,13 +55,11 @@ class MapApp {
     this.filterRadiusLayer = null;
     this.closestResultLayer = null;
     this.currentMapClickHandler = null;
-    /** Capture-fase klikk på kart-container (se setMapClickHandler) — samme funksjonsreferanse til removeEventListener. */
-    this._spatialPickCaptureBound = null;
 
     this.map = this.initMap();
     this.baseLayers = this.initBaseLayers();
     this.nodhavnLayer = createNodhavnGeoJSONLayer();
-    this.kommuneNodhavnLayer = createKommuneNodhavnDensityLayer();
+    this.nodhavnAnalysisLayer = createNodhavnAnalysisLayer();
     this.farlederLayer = createFarlederLayer();
     this.kommunerLayer = createKommunerLayer();
     this.externalLayer = createExternalLayer();
@@ -106,113 +101,51 @@ class MapApp {
       attribution: '© OpenStreetMap, © CARTO'
     });
 
+    // OSM is already added in initMap; keep references for layer control.
     return {
-      'CartoDB Lys': carto,
-      'OpenStreetMap': osm
+      'OpenStreetMap': osm,
+      'CartoDB Lys': carto
     };
   }
 
   initLayerControls() {
-    if (this.baseLayers && this.baseLayers['CartoDB Lys']) {
-      this.baseLayers['CartoDB Lys'].addTo(this.map);
+    // Show default baselayer (OSM)
+    if (this.baseLayers && this.baseLayers['OpenStreetMap']) {
+      this.baseLayers['OpenStreetMap'].addTo(this.map);
     }
 
-    // Rekkefølge: koroplett og farleder under nødhavn-punkter (sirkelmarkører skal ligge øverst).
-    // Analyse (koroplett) er av som standard — skrus på i lagvelgeren.
-    this.farlederLayer.addTo(this.map);
     this.nodhavnLayer.addTo(this.map);
-    this.ensureNodhavnOnTop();
-
-    this.map.on('overlayadd', () => {
-      this.ensureNodhavnOnTop();
-    });
+    // this.nodhavnAnalysisLayer.addTo(this.map); // Fjernet fra standardvisning for å ikke forstyrre kartet
+    this.farlederLayer.addTo(this.map);
+    this.nodhavnLayer.bringToFront();
 
     const overlays = {
       'Nødhavn (søkeresultat)': this.nodhavnLayer,
-      'Analyse: Nødhavn per kommune': this.kommuneNodhavnLayer,
+      'Analysert datasett: 500m Buffere': this.nodhavnAnalysisLayer,
       'Farleder': this.farlederLayer,
       'Kommunegrenser': this.kommunerLayer,
       'Eksternt lag (OGC)': this.externalLayer
     };
 
     L.control.layers(this.baseLayers, overlays).addTo(this.map);
-
-    const self = this;
-    window.addEventListener('ensure-nodhavn-on-top', function () {
-      self.ensureNodhavnOnTop();
-    });
-  }
-
-  ensureNodhavnOnTop() {
-    if (this.nodhavnLayer && this.map.hasLayer(this.nodhavnLayer)) {
-      this.nodhavnLayer.bringToFront();
-    }
-  }
-
-  /** Klikk som ikke skal tolkes som valg av søkepunkt (kontroller, popup, tooltip). */
-  spatialPickIgnoreEventTarget(target) {
-    if (!target || typeof target.closest !== 'function') return false;
-    return !!(
-      target.closest('.leaflet-control') ||
-      target.closest('.leaflet-popup') ||
-      target.closest('.leaflet-tooltip')
-    );
-  }
-
-  /** Konsekvent L.LatLng for posisjon / klikk (unngår at {lat,lng} feiler stille i noen flyter). */
-  normalizeFilterCenter(center) {
-    if (center == null) return null;
-    if (typeof center.lat === 'number' && typeof center.lng === 'number') {
-      return L.latLng(center.lat, center.lng);
-    }
-    if (center.latitude != null && center.longitude != null) {
-      return L.latLng(Number(center.latitude), Number(center.longitude));
-    }
-    return null;
   }
 
   // ---------------- SAFE CLICK HANDLER ----------------
-  /**
-   * Standard map.on('click') fyrer ikke når man treffer GeoJSON (kommune, farled, …).
-   * Bruk capture-fase på kart-containeren slik at vi alltid får koordinat før vektorlag.
-   */
   setMapClickHandler(handler) {
-    const container = this.map.getContainer();
-
-    if (this._spatialPickCaptureBound) {
-      container.removeEventListener('click', this._spatialPickCaptureBound, true);
-      this._spatialPickCaptureBound = null;
+    if (this.currentMapClickHandler) {
+      this.map.off('click', this.currentMapClickHandler);
     }
-
     this.currentMapClickHandler = handler;
-
-    if (!handler) {
-      return;
+    if (handler) {
+      this.map.on('click', handler);
     }
-
-    this._spatialPickCaptureBound = (e) => {
-      if (!this.currentMapClickHandler) return;
-      if (e.button != null && e.button !== 0) return;
-      if (this.spatialPickIgnoreEventTarget(e.target)) return;
-
-      const latlng = this.map.mouseEventToLatLng(e);
-      if (!latlng) return;
-
-      L.DomEvent.stopPropagation(e);
-      this.currentMapClickHandler({ latlng, originalEvent: e });
-    };
-
-    container.addEventListener('click', this._spatialPickCaptureBound, true);
   }
 
   // ---------------- CLOSEST HARBOR (sea routing via API) ----------------
   async handleClosestClick(latlng) {
     this.clearAllOverlays();
 
-    const geojson =
-      typeof window.getDisplayNodhavnGeoJSON === 'function'
-        ? window.getDisplayNodhavnGeoJSON()
-        : window.nodhavnGeoJSON;
+    const geojson = window.nodhavnGeoJSON;
 
     if (!geojson) {
       this.updateHint('Data lastes...');
@@ -348,44 +281,6 @@ class MapApp {
   }
 
   // ---------------- FILTER --------------
-  /**
-   * Tegner sirkel + flyttbar markør for radius-søk. Ved drag oppdateres sirkelen;
-   * ved dragend kjøres søket på nytt fra ny posisjon.
-   */
-  addDraggableFilterRadiusOverlay(latlng) {
-    const radiusM = this.filterDistanceKm * 1000;
-    const circle = L.circle(latlng, {
-      radius: radiusM,
-      color: '#0066cc',
-      fillColor: '#0066cc',
-      fillOpacity: 0.15,
-      weight: 2,
-      interactive: false
-    });
-    const marker = L.marker(latlng, {
-      draggable: true,
-      title: 'Dra for å flytte søkepunktet'
-    }).bindPopup(
-      `Valgt punkt<br>Radius: ${this.filterDistanceKm} km<br><small>Dra markøren for å flytte søket.</small>`
-    );
-
-    marker.on('drag', () => {
-      circle.setLatLng(marker.getLatLng());
-    });
-
-    marker.on('dragend', () => {
-      const ll = marker.getLatLng();
-      this.activeFilterCenter = ll;
-      circle.setLatLng(ll);
-      this.applySpatialFilter(ll);
-    });
-
-    const group = L.layerGroup([circle, marker]);
-    group.addTo(this.map);
-    this.filterRadiusLayer = group;
-    this.activeFilterCenter = latlng;
-  }
-
   applySpatialFilter(latlng) {
     const client = window.supabase;
 
@@ -394,18 +289,12 @@ class MapApp {
       return;
     }
 
-    const ll = this.normalizeFilterCenter(latlng);
-    if (!ll) {
-      this.updateHint('Kunne ikke lese søkepunkt. Velg punkt på nytt.');
-      return;
-    }
-
     this.updateHint('Henter nødhavn fra databasen...');
 
     client
       .rpc('get_nodhavn_within_distance', {
-      click_lng: ll.lng,
-      click_lat: ll.lat,
+      click_lng: latlng.lng,
+      click_lat: latlng.lat,
       distance_meters: this.filterDistanceKm * 1000
     })
     .then(result => {
@@ -415,7 +304,7 @@ class MapApp {
       }
 
       const rows = result.data || [];
-      let features = rows.map(r => {
+      const features = rows.map(r => {
         const lng = Number(r.longitude);
         const latVal = Number(r.latitude);
 
@@ -436,19 +325,30 @@ class MapApp {
         };
       });
 
-      const vesselM =
-        typeof window.getVesselLengthFilterM === 'function' ? window.getVesselLengthFilterM() : null;
-      if (vesselM && typeof window.featureAcceptsVesselLength === 'function') {
-        features = features.filter((f) => window.featureAcceptsVesselLength(f, vesselM));
-      }
-
       // Update layer to only show filtered results
       this.clearAllOverlays();
       this.nodhavnLayer.clearLayers();
       this.nodhavnLayer.addData({ type: 'FeatureCollection', features });
       this.nodhavnLayer.addTo(this.map);
 
-      this.addDraggableFilterRadiusOverlay(ll);
+      // Draw radius circle + selected point marker
+      const group = L.layerGroup();
+      const circle = L.circle(latlng, {
+        radius: this.filterDistanceKm * 1000,
+        color: '#0066cc',
+        fillColor: '#0066cc',
+        fillOpacity: 0.15,
+        weight: 2,
+        interactive: false
+      });
+      const marker = L.marker(latlng).bindPopup(
+        `Valgt punkt<br>Avstand: ${this.filterDistanceKm} km`
+      );
+      group.addLayer(circle);
+      group.addLayer(marker);
+      group.addTo(this.map);
+      this.filterRadiusLayer = group;
+      this.activeFilterCenter = latlng;
 
       const n = features.length;
       this.setHintHasResults(n > 0);
@@ -484,24 +384,18 @@ class MapApp {
   }
 
   showAllNodhavn() {
-    if (!window.nodhavnGeoJSON) {
+    const geojson = window.nodhavnGeoJSON;
+
+    if (!geojson) {
       this.updateHint('Data lastes...');
       return;
     }
 
-    window.__vesselLengthFilterM__ = null;
-    if (this.vesselLengthInput) this.vesselLengthInput.value = '';
-
     this.clearAllOverlays();
     this.activeFilterCenter = null;
 
-    if (typeof window.applyNodhavnDisplayFilter === 'function') {
-      window.applyNodhavnDisplayFilter(this.nodhavnLayer);
-    } else {
-      this.nodhavnLayer.clearLayers();
-      this.nodhavnLayer.addData(window.nodhavnGeoJSON);
-    }
-    this.nodhavnLayer.addTo(this.map);
+    this.nodhavnLayer.clearLayers();
+    this.nodhavnLayer.addData(geojson).addTo(this.map);
 
     this.setMapClickHandler(null);
     this.setHintHasResults(false);
@@ -552,28 +446,12 @@ class MapApp {
         updateDistanceDisplay();
         this.filterDistanceKm = Number(this.filterDistanceInput.value) || 100;
         if (this.activeFilterCenter) {
-          const c = this.normalizeFilterCenter(this.activeFilterCenter);
-          if (c) this.applySpatialFilter(c);
+          this.applySpatialFilter(this.activeFilterCenter);
         }
       });
 
       updateDistanceDisplay();
       this.filterDistanceKm = Number(this.filterDistanceInput.value) || 100;
-    }
-
-    this.vesselLengthInput = document.getElementById('vessel-length-input');
-    this.vesselFilterBtn = document.getElementById('vessel-filter-btn');
-
-    if (this.vesselFilterBtn) {
-      this.vesselFilterBtn.addEventListener('click', () => this.applyVesselLengthFilter());
-    }
-    if (this.vesselLengthInput) {
-      this.vesselLengthInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          this.applyVesselLengthFilter();
-        }
-      });
     }
 
     if (this.filterBtn) {
@@ -639,47 +517,6 @@ class MapApp {
     if (this.filterHint) {
       this.filterHint.textContent = text;
     }
-  }
-
-  applyVesselLengthFilter() {
-    const raw = this.vesselLengthInput ? this.vesselLengthInput.value : '';
-    const trimmed = raw != null ? String(raw).trim() : '';
-    if (trimmed === '') {
-      this.updateHint('Skriv fartøylengde i meter, eller trykk «Vis alle nødhavner» for å tilbakestille.');
-      return;
-    }
-    let n = Number(trimmed);
-    if (isNaN(n) || n <= 0) {
-      this.updateHint('Ugyldig lengde. Bruk et positivt tall (meter).');
-      return;
-    }
-    if (n > VESSEL_INPUT_MAX_M) {
-      n = VESSEL_INPUT_MAX_M;
-      if (this.vesselLengthInput) this.vesselLengthInput.value = String(VESSEL_INPUT_MAX_M);
-      this.updateHint(`Lengden er begrenset til maks ${VESSEL_INPUT_MAX_M} m (største kategori i kartet).`);
-    }
-    window.__vesselLengthFilterM__ = n;
-    if (typeof window.applyNodhavnDisplayFilter === 'function') {
-      window.applyNodhavnDisplayFilter(this.nodhavnLayer);
-    }
-    this.nodhavnLayer.addTo(this.map);
-    this.nodhavnLayer.bringToFront();
-
-    if (this.activeFilterCenter) {
-      const c = this.normalizeFilterCenter(this.activeFilterCenter);
-      if (c) this.applySpatialFilter(c);
-      return;
-    }
-
-    const gjeldende =
-      typeof window.getDisplayNodhavnGeoJSON === 'function'
-        ? window.getDisplayNodhavnGeoJSON()
-        : null;
-    const count = gjeldende && gjeldende.features ? gjeldende.features.length : 0;
-    this.setHintHasResults(count > 0);
-    this.updateHint(
-      `Fartøysfilter ${n} m: ${count} egnede havner vises (K1/K2/K3 etter maks lengde 330/200/120 m).`
-    );
   }
 }
 

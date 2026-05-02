@@ -12,6 +12,8 @@
 
 Webkartet er utvidet med **romlig analyse knyttet til brukerinteraksjon** og tydelig **visuell tilbakemelding** i kartet.
 
+I tillegg vises et **analysert kartlag**: *antall nødhavn per kommune* etter **gjeldende visning** (romlig aggregering). Når brukeren setter **fartøylengde (m)** og aktiverer filteret, telles kun havner som kan ta den lengden (K1/K2/K3 maks ca. 330/200/120 m); koropletten oppdateres da til den **avledede mengden** — kombinasjon av attributtregler og geografisk aggregering mot kommuner.
+
 ### 1. Dynamisk henting ved klikk og posisjon (Supabase / Spatial SQL)
 
 - **Radius rundt valgt punkt:** Brukeren velger en avstand (10–500 km) med glidebryter, aktiverer «Finn nødhavner rundt punkt» og **klikker på kartet**. Applikasjonen sender da **klikkets koordinater** (`click_lng`, `click_lat`) og **søkeradius i meter** (`distance_meters`) til en **lagret funksjon i Supabase**: `get_nodhavn_within_distance`.
@@ -218,6 +220,7 @@ Oversikt over datasett (kort):
 |----------|--------|---------|
 | Nødhavn (primær) | Supabase `nodhavn` | Konverteres til GeoJSON i klienten |
 | Nødhavn (fallback) | `data/nodhavn.geojson` | Ved Supabase-feil |
+| Avledet analyse (koroplett) | Beregnes i `assets/js/layers.js` | Antall nødhavn per kommune etter aktivt fartøysfilter (aggregering mot `data/kommuner.geojson`) |
 | Bakgrunn | OSM / CartoDB | XYZ-fliser |
 | Eksternt lag | GeoNorge Topo2 WMS | Valgfritt |
 
