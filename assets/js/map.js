@@ -537,10 +537,18 @@ class MapApp {
     this.panelToggle = document.getElementById('panel-toggle');
 
     if (this.panelToggle) {
+      const panelEl = document.getElementById('search-panel');
+      const syncPanelToggle = () => {
+        if (!panelEl || !this.panelToggle) return;
+        const collapsed = panelEl.classList.contains('collapsed');
+        this.panelToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        this.panelToggle.title = collapsed ? 'Vis meny' : 'Skjul meny';
+      };
       this.panelToggle.addEventListener('click', () => {
-        const panel = document.getElementById('search-panel');
-        if (panel) panel.classList.toggle('collapsed');
+        if (panelEl) panelEl.classList.toggle('collapsed');
+        syncPanelToggle();
       });
+      syncPanelToggle();
     }
 
     if (this.filterDistanceInput) {

@@ -174,6 +174,7 @@ if (typeof window !== 'undefined') {
  */
 function createNodhavnGeoJSONLayer() {
   var layer = L.geoJSON(null, {
+    preferCanvas: true,
     pointToLayer: function (feature, latlng) {
       var props = feature.properties || {};
       var color = getColorByType(props.type || props.kategori);
@@ -263,6 +264,12 @@ function nodhavnPointInKommunePolygon(turfLib, pointFeature, kommunePolygonFeatu
   }
 }
 
+/** Turf bbox = [minLng, minLat, maxLng, maxLat] — billig forfiltrering før booleanPointInPolygon */
+function pointInLngLatBBox(lng, lat, bbox) {
+  if (!bbox || bbox.length < 4) return true;
+  return lng >= bbox[0] && lat >= bbox[1] && lng <= bbox[2] && lat <= bbox[3];
+}
+
 /**
  * FALLBACK ONLY — Teller nødhavn per kommune basert på punktets tekstfelt «kommune».
  * Brukes når Turf mangler, kaster unntak, eller for enkeltpunkter som ikke treffer noen kommune-polygon.
@@ -342,12 +349,27 @@ function aggregateNodhavnCountsByPointInPolygon(turfLib, nodhavnGeoJSON, kommune
   });
   var spatialHits = 0;
 
+  var bboxes = null;
+  if (turfLib && typeof turfLib.bbox === 'function') {
+    bboxes = polyFeatures.map(function (pf) {
+      try {
+        return turfLib.bbox(pf);
+      } catch (e) {
+        return null;
+      }
+    });
+  }
+
   for (var pi = 0; pi < pointFeatures.length; pi++) {
     var ptFeat = pointFeatures[pi];
     if (!ptFeat || !ptFeat.geometry || ptFeat.geometry.type !== 'Point') continue;
+    var coords = ptFeat.geometry.coordinates;
+    var plng = coords[0];
+    var plat = coords[1];
 
     var foundPoly = false;
     for (var ki = 0; ki < polyFeatures.length; ki++) {
+      if (bboxes && bboxes[ki] && !pointInLngLatBBox(plng, plat, bboxes[ki])) continue;
       if (nodhavnPointInKommunePolygon(turfLib, ptFeat, polyFeatures[ki])) {
         countsByIndex[ki]++;
         spatialHits++;
@@ -481,8 +503,14 @@ function createKommuneNodhavnDensityLayer() {
       kommunerData = evt.detail;
       refresh();
     });
+    /* Punkt-i-polygon er tungt: kjør etter at nødhavn-markører er ferdig tegnet (neste macrotask). */
+    var displayRefreshTimer = null;
     window.addEventListener('nodhavn-display-changed', function () {
-      refresh();
+      if (displayRefreshTimer != null) clearTimeout(displayRefreshTimer);
+      displayRefreshTimer = setTimeout(function () {
+        displayRefreshTimer = null;
+        refresh();
+      }, 0);
     });
   }
 
