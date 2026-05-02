@@ -1,15 +1,12 @@
 {
   "name": "is218-nodhavn",
   "private": true,
-  "description": "Starts searoute (Python) + Express API together for local dev / Live Server",
+  "description": "Nødhavn-kart — statisk app; valgfri Node-server for lokal utvikling",
   "workspaces": [
     "server"
   ],
   "scripts": {
-    "dev": "concurrently -k -n py,web -c blue,green \"python -m uvicorn searoute_service.main:app --host 127.0.0.1 --port 8001\" \"node server/server.mjs\"",
+    "dev": "node server/server.mjs",
     "start": "node server/server.mjs"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
   }
 }

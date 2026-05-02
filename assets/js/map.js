@@ -1,43 +1,5 @@
-/**
- * Når siden kjører på Live Server (f.eks. 5500) og API på 3000, må vi bruke full URL.
- * Samme hostname som siden (localhost vs 127.0.0.1 vs ::1) unngår rare tilkoblingsfeil.
- * Override: window.__SEAROUTE_API_BASE__ = 'http://127.0.0.1:3000'
- */
 /** Maks LOA brukeren kan angi — samme tak som K1 (330 m) i nødhavn-regelverket i appen. */
 const VESSEL_INPUT_MAX_M = 330;
-
-function searouteApiUrl(path) {
-  if (typeof window === 'undefined') return path;
-  const override = window.__SEAROUTE_API_BASE__;
-  if (override != null && String(override).trim() !== '') {
-    const base = String(override).replace(/\/$/, '');
-    return base + (path.startsWith('/') ? path : '/' + path);
-  }
-  let u;
-  try {
-    u = new URL(window.location.href);
-  } catch {
-    return path;
-  }
-  const port = u.port;
-  const h = u.hostname;
-  const isLocal =
-    h === 'localhost' ||
-    h === '127.0.0.1' ||
-    h === '[::1]' ||
-    h === '::1';
-  if (isLocal && port && port !== '3000') {
-    const p = path.startsWith('/') ? path : '/' + path;
-    try {
-      const api = new URL(u.href);
-      api.port = '3000';
-      return api.origin + p;
-    } catch {
-      return `${u.protocol}//${h}:3000${p}`;
-    }
-  }
-  return path;
-}
 
 class MapApp {
   constructor() {
@@ -56,7 +18,6 @@ class MapApp {
     this.activeFilterCenter = null;
 
     this.filterRadiusLayer = null;
-    this.closestResultLayer = null;
     this.currentMapClickHandler = null;
     /** Capture-fase klikk på kart-container (se setMapClickHandler) — samme funksjonsreferanse til removeEventListener. */
     this._spatialPickCaptureBound = null;
@@ -205,148 +166,6 @@ class MapApp {
     container.addEventListener('click', this._spatialPickCaptureBound, true);
   }
 
-  // ---------------- CLOSEST HARBOR (sea routing via API) ----------------
-  async handleClosestClick(latlng) {
-    this.clearAllOverlays();
-
-    const geojson =
-      typeof window.getDisplayNodhavnGeoJSON === 'function'
-        ? window.getDisplayNodhavnGeoJSON()
-        : window.nodhavnGeoJSON;
-
-    if (!geojson) {
-      this.updateHint('Data lastes...');
-      return;
-    }
-
-    if (!geojson.features || geojson.features.length === 0) {
-      this.updateHint('Ingen nødhavn funnet.');
-      return;
-    }
-
-    this.updateHint('Beregner sjøroute til nærmeste nødhavn...');
-
-    const ports = geojson.features.map((feature, i) => {
-      const [lng, lat] = feature.geometry.coordinates;
-      return {
-        lat,
-        lng,
-        index: i,
-        properties: feature.properties || {}
-      };
-    });
-
-    try {
-      const res = await fetch(searouteApiUrl('/api/closest-port'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origin: { lat: latlng.lat, lng: latlng.lng },
-          ports
-        })
-      });
-
-      const raw = await res.text();
-      const trimmed = raw.trim();
-
-      if (!trimmed) {
-        if (res.status === 404) {
-          this.updateHint(
-            'Ingen /api/closest-port (404). Sjekk at `npm run dev` kjører (eller VS Code-oppgaven «Dev: sjøroute-backend»), og at Live Server ikke blokkerer port 3000.'
-          );
-        } else {
-          this.updateHint(`Sjøroute: tomt svar fra tjeneren (HTTP ${res.status}).`);
-        }
-        return;
-      }
-
-      let data;
-      try {
-        data = JSON.parse(trimmed);
-      } catch {
-        this.updateHint(
-          'Sjøroute: tjeneren returnerte ikke JSON (sjekk at du bruker Node-proxyen på port 3000).'
-        );
-        return;
-      }
-
-      if (!res.ok) {
-        const detail = data.detail;
-        const msg =
-          typeof detail === 'string'
-            ? detail
-            : Array.isArray(detail)
-              ? detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
-              : data.error || res.statusText;
-        this.updateHint(`Sjøroute: ${msg}`);
-        return;
-      }
-
-      const distanceKm = data.distance_km;
-      const props = data.port_properties || {};
-      const navn = props.navn || props.name || 'Nødhavn';
-      const rounded = Number(distanceKm).toFixed(2);
-      const category = props.kategori || '–';
-
-      const portIdx = data.port_index;
-      const portFeat = geojson.features[portIdx];
-      if (!portFeat || !portFeat.geometry || portFeat.geometry.type !== 'Point') {
-        this.updateHint('Kunne ikke plassere valgt havn (mangler punkt i GeoJSON).');
-        return;
-      }
-      const [harborLngRaw, harborLatRaw] = portFeat.geometry.coordinates;
-      const harborLng = data.port_lng != null ? Number(data.port_lng) : Number(harborLngRaw);
-      const harborLat = data.port_lat != null ? Number(data.port_lat) : Number(harborLatRaw);
-
-      this.updateHint(`Nærmeste (sjø): ${navn} – ${rounded} km`);
-
-      const clickExact = L.latLng(latlng.lat, latlng.lng);
-      const harborExact = L.latLng(harborLat, harborLng);
-
-      const clickMarker = L.marker(clickExact)
-        .addTo(this.map)
-        .bindPopup(`<b>${navn}</b><br>Sjøvei: ${rounded} km<br>Kategori: ${category}`)
-        .openPopup();
-
-      const geom = data.geometry;
-      if (!geom || geom.type !== 'LineString' || !Array.isArray(geom.coordinates)) {
-        this.updateHint('Ugyldig sjørute fra tjeneren.');
-        return;
-      }
-
-      const routeCoords = geom.coordinates.map((c) => [Number(c[0]), Number(c[1])]);
-      if (routeCoords.length >= 1) {
-        routeCoords[0] = [clickExact.lng, clickExact.lat];
-      }
-      if (routeCoords.length >= 2) {
-        routeCoords[routeCoords.length - 1] = [harborExact.lng, harborExact.lat];
-      }
-
-      const latlngs = routeCoords.map((c) => L.latLng(c[1], c[0]));
-      const line = L.polyline(latlngs, {
-        color: '#0066cc',
-        weight: 3,
-        opacity: 0.9
-      }).addTo(this.map);
-
-      const harborMarker = L.marker(harborExact)
-        .addTo(this.map)
-        .bindPopup(`<b>${navn}</b><br>Sjøvei: ${rounded} km<br>Kategori: ${category}`);
-
-      this.closestResultLayer = L.layerGroup([clickMarker, line, harborMarker]).addTo(this.map);
-      const bounds = L.latLngBounds(clickExact, harborExact);
-      latlngs.forEach((ll) => {
-        bounds.extend(ll);
-      });
-      this.map.fitBounds(bounds.pad(0.15));
-    } catch (err) {
-      const msg = err && err.message ? err.message : 'Ukjent feil';
-      this.updateHint(
-        `Kunne ikke nå sjøroute-API (${msg}). Kjør «npm run dev» i prosjektroten (Node 3000 + Python 8001). Med Live Server: åpne http://127.0.0.1:3000/api/health i nettleser — skal vise {"ok":true}.`
-      );
-    }
-  }
-
   // ---------------- FILTER --------------
   /**
    * Tegner sirkel + flyttbar markør for radius-søk. Ved drag oppdateres sirkelen;
@@ -468,11 +287,6 @@ class MapApp {
     if (this.filterRadiusLayer) {
       this.map.removeLayer(this.filterRadiusLayer);
       this.filterRadiusLayer = null;
-    }
-
-    if (this.closestResultLayer) {
-      this.map.removeLayer(this.closestResultLayer);
-      this.closestResultLayer = null;
     }
   }
 
