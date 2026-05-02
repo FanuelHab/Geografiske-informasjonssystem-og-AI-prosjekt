@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Dev: sjøroute-backend (Python + Node)",
+      "label": "Dev: Node-server (statiske filer)",
       "type": "process",
       "command": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VisualStudio\\NodeJs\\npm.cmd",
       "args": ["run", "dev"],

@@ -1,4 +1,4 @@
-{
+﻿{
   "cells": [
     {
       "cell_type": "markdown",
@@ -272,10 +272,6 @@
         "    print(\n",
         "        f\"Areal differanse (hull \\\\ buffer-union): {area_km2(overlay_diff.geometry.iloc[0]):.1f} km²\"\n",
         "    )\n",
-        "\n",
-        "# Eksporter bufferlaget slik at frontend kan laste det ned som et «bearbeidet geografisk datasett»\n",
-        "nod_buffers.to_crs(\"EPSG:4326\").to_file(\"data/nodhavn_buffere.geojson\", driver=\"GeoJSON\")\n",
-        "print(\"\\nEksporterte buffer-laget til data/nodhavn_buffere.geojson\")\n",
         "\n",
         "# Kart: punkter, buffere (lett synlig), hull og overlay-resultat\n",
         "fig, axes = plt.subplots(1, 2, figsize=(14, 7))\n",

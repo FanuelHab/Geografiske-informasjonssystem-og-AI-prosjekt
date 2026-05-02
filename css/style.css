@@ -5,150 +5,202 @@
 }
 
 :root {
-  --navy: #0a2744;
-  --navy-light: #143d5c;
-  --ocean: #1a5f7a;
-  --ocean-light: #2d8ba8;
-  --foam: #e8f4f8;
+  --navy: #0c3049;
+  --navy-light: #163d59;
+  --ocean: #176078;
+  --ocean-light: #2a8daa;
+  --foam: #eef6f9;
+  --surface: #f7f9fb;
   --white: #ffffff;
-  --text: #1a2b3c;
-  --text-muted: #5a6b7c;
+  --text: #1b2836;
+  --text-muted: #5c6c7d;
   --success: #0d7d4d;
-  --border: rgba(10, 39, 68, 0.12);
-  --shadow: 0 4px 20px rgba(10, 39, 68, 0.15);
-  --radius: 12px;
-  --radius-sm: 8px;
+  --border: rgba(15, 46, 72, 0.1);
+  --shadow: 0 12px 40px rgba(15, 46, 72, 0.12), 0 2px 8px rgba(15, 46, 72, 0.06);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --panel-width: min(420px, calc(100vw - 24px));
+  --panel-pad-x: 14px;
+  --panel-pad-y: 12px;
+  --panel-gap: 10px;
 }
 
 html, body {
   height: 100%;
   width: 100%;
+  overflow: hidden;
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
 #map {
+  position: absolute;
+  inset: 0;
   height: 100%;
   width: 100%;
 }
 
 /* ─── Search panel ─── */
+/* Ytre #search-panel: ingen overflow (flytende toggle). .panel-card = synlig ramme; .panel-body ruller; .panel-status er festet nederst */
 #search-panel {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 12px;
+  left: 12px;
   z-index: 1000;
-  width: 320px;
-  max-width: calc(100vw - 32px);
-  background: var(--white);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  width: var(--panel-width);
+  max-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
   overflow: visible;
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
-#search-panel.collapsed {
-  transform: translateX(-280px);
-  opacity: 0.9;
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: calc(100vh - 24px);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  background: var(--white);
+  overflow: hidden;
 }
 
-#search-panel.collapsed .panel-toggle {
-  right: -40px;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  box-shadow: 4px 0 12px rgba(0,0,0,0.1);
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 46, 72, 0.28) transparent;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 46, 72, 0.22);
+  border-radius: 4px;
+}
+
+#search-panel.collapsed {
+  transform: translateX(calc(-100% + 44px));
+  opacity: 0.98;
 }
 
 .panel-header {
   position: relative;
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  flex-shrink: 0;
+  background: linear-gradient(145deg, var(--navy) 0%, #0f3d5c 48%, var(--navy-light) 100%);
   color: var(--white);
-  padding: 20px;
+  padding: 14px 46px 14px var(--panel-pad-x);
 }
 
 .legend-help-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 22px;
-  height: 22px;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--white);
-  font-size: 0.9rem;
-  font-weight: 600;
-  font-style: italic;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
 }
 
 .legend-help-btn:hover {
-  background: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
-.legend-popover {
-  position: absolute;
-  top: 14px;
-  left: calc(100% + 8px);
-  z-index: 2000;
-  min-width: 280px;
-  background: var(--white);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  padding: 16px 18px;
+.legend-drawer {
+  flex-shrink: 0;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
+  background: var(--foam);
+  border-bottom: 1px solid var(--border);
 }
 
-.legend-popover[hidden] {
+.legend-drawer[hidden] {
   display: none;
+}
+
+.legend-drawer-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ocean);
+  margin-bottom: 8px;
 }
 
 .panel-logo {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel-title-block {
+  min-width: 0;
+  flex: 1;
 }
 
 .logo-icon {
-  font-size: 28px;
-  line-height: 1;
-  opacity: 0.95;
+  font-size: 20px;
+  line-height: 1.15;
+  opacity: 0.92;
+  flex-shrink: 0;
 }
 
 .panel-logo h1 {
-  font-size: 1.25rem;
+  font-size: 1.02rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.03em;
+  line-height: 1.22;
+  word-wrap: break-word;
 }
 
 .panel-tagline {
-  font-size: 0.8rem;
-  opacity: 0.85;
-  margin-top: 2px;
+  font-size: 0.75rem;
+  opacity: 0.88;
+  margin-top: 3px;
+  line-height: 1.4;
+  font-weight: 400;
 }
 
 /* ─── Sections ─── */
 .panel-section {
-  padding: 18px 20px;
+  flex-shrink: 0;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
   border-bottom: 1px solid var(--border);
+  background: var(--white);
 }
 
 .panel-section-primary {
-  background: linear-gradient(180deg, var(--foam) 0%, var(--white) 100%);
+  background: var(--surface);
 }
 
 .panel-section h2 {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 8px;
 }
 
 .panel-section-primary h2 {
@@ -156,22 +208,24 @@ html, body {
 }
 
 .section-hint {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  margin-top: 8px;
-  line-height: 1.4;
+  margin-top: var(--panel-gap);
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
 }
 
 /* ─── Slider ─── */
 .slider-row {
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .slider-row label {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .slider-row output {
@@ -208,6 +262,46 @@ html, body {
   cursor: pointer;
   border: 2px solid var(--white);
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.slider-row input[type="number"] {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+
+/* Én kolonne, full bredde — samme rytme som øvrige knapper i panelet */
+.vessel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap);
+  margin-top: var(--panel-gap);
+}
+
+.vessel-actions .btn {
+  width: 100%;
+  min-width: 0;
+}
+
+#search-panel .vessel-actions .btn-ghost {
+  margin-top: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 46, 72, 0.14);
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+#search-panel .vessel-actions .btn-ghost:hover {
+  border-color: rgba(23, 96, 120, 0.35);
+  color: var(--ocean);
+  background: var(--foam);
 }
 
 /* ─── Input ─── */
@@ -251,14 +345,19 @@ html, body {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  font-size: 0.84rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s, border-color 0.2s;
+}
+
+/* Knapp som kommer rett etter glidebryter (radius-filter) */
+#search-panel .panel-section > .slider-row + .btn {
+  margin-top: 4px;
 }
 
 .btn:active {
@@ -279,11 +378,12 @@ html, body {
 .btn-secondary {
   background: var(--white);
   color: var(--navy);
-  border: 2px solid var(--border);
+  border: 1px solid rgba(15, 46, 72, 0.18);
+  box-shadow: 0 1px 2px rgba(15, 46, 72, 0.06);
 }
 
 .btn-secondary:hover {
-  border-color: var(--ocean-light);
+  border-color: rgba(23, 96, 120, 0.45);
   color: var(--ocean);
   background: var(--foam);
 }
@@ -291,10 +391,12 @@ html, body {
 .btn-ghost {
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  padding: 8px 0;
-  margin-top: 8px;
+  padding: 8px 10px;
+  margin-top: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .btn-ghost:hover {
@@ -305,39 +407,53 @@ html, body {
   font-size: 1.1em;
 }
 
-/* ─── Legend popover ─── */
+/* ─── Legend (innfelt i panel) ─── */
 .legend-list {
   list-style: none;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--text);
-  line-height: 2;
+  line-height: 1.45;
 }
 
 .legend-list li {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  white-space: nowrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.legend-list li:last-child {
+  margin-bottom: 0;
+}
+
+.legend-list li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 1px solid rgba(0,0,0,0.15);
+  margin-top: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9);
 }
 
-/* ─── Status ─── */
+/* ─── Status (utenfor .panel-body-scroll — alltid synlig når meny er åpen) ─── */
 .panel-status {
-  padding: 16px 20px;
-  background: var(--foam);
+  flex-shrink: 0;
+  padding: var(--panel-pad-y) var(--panel-pad-x) calc(var(--panel-pad-y) + 2px);
+  background: linear-gradient(180deg, var(--foam) 0%, #e8f2f7 100%);
+  border-top: 1px solid var(--border);
 }
 
 .panel-status #filter-hint {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .panel-status #filter-hint.has-results {
@@ -345,31 +461,55 @@ html, body {
   font-weight: 500;
 }
 
-/* ─── Panel toggle ─── */
+/* ─── Panel toggle: flytende på kartet til høyre for menyen (ikke en del av panelkanten) ─── */
 .panel-toggle {
   position: absolute;
   top: 50%;
-  right: -32px;
+  left: calc(100% + 12px);
+  right: auto;
   transform: translateY(-50%);
-  width: 24px;
-  height: 48px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-left: none;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  width: 30px;
+  height: 42px;
+  padding: 0;
+  margin: 0;
+  background: #ffffff;
+  border: 2px solid rgba(12, 48, 73, 0.28);
+  border-radius: 14px;
+  box-shadow:
+    0 2px 6px rgba(12, 48, 73, 0.12),
+    0 8px 24px rgba(12, 48, 73, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  font-size: 1rem;
-  transition: right 0.25s, background 0.2s;
-  z-index: 1;
+  color: var(--navy);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+  z-index: 1003;
 }
 
 .panel-toggle:hover {
   background: var(--foam);
   color: var(--ocean);
+  border-color: rgba(23, 96, 120, 0.45);
+  box-shadow:
+    0 4px 12px rgba(12, 48, 73, 0.16),
+    0 12px 28px rgba(12, 48, 73, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset;
+}
+
+.panel-toggle:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.panel-toggle:focus-visible {
+  outline: 2px solid var(--ocean-light);
+  outline-offset: 2px;
 }
 
 #search-panel.collapsed .toggle-icon {
@@ -377,7 +517,8 @@ html, body {
 }
 
 .toggle-icon {
-  transition: transform 0.25s;
+  display: block;
+  transition: transform 0.28s ease;
 }
 
 /* ─── Leaflet popups ─── */

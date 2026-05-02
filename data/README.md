@@ -16,7 +16,7 @@ data/
 
 ## Loading GeoJSON Data
 
-To load GeoJSON data in your application, you can use the following pattern in `app.js`:
+To load GeoJSON data in your application, you can use a pattern like this (see `assets/js/layers.js` for the full integration):
 
 ```javascript
 // Example: Loading a GeoJSON file

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Static host + proxy to searoute Python service",
+  "description": "Express static file server for local development",
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs"
