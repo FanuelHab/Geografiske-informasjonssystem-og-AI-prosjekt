@@ -155,6 +155,50 @@ function createExternalLayer() {
   });
 }
 
+/**
+ * Farleder fra lokal GeoJSON-fil.
+ */
+function createFarlederLayer() {
+  var layer = L.geoJSON(null, {
+    style: function (feature) {
+      var props = feature && feature.properties ? feature.properties : {};
+      var isMainRoute = String(props.farledtype || '').toLowerCase().indexOf('hoved') !== -1;
+      return {
+        color: isMainRoute ? '#0b7285' : '#4dabf7',
+        weight: isMainRoute ? 3 : 2,
+        opacity: 0.85
+      };
+    },
+    onEachFeature: function (feature, lineLayer) {
+      var p = feature.properties || {};
+      var navn = p.farlednavn || 'Ukjent farled';
+      var nummer = p.farlednummer || '–';
+      var type = p.farledtype || '–';
+      lineLayer.bindPopup(
+        '<div class="popup-content">' +
+          '<p><strong>Farled:</strong> ' + escapeHtml(String(navn)) + '</p>' +
+          '<p><strong>Nummer:</strong> ' + escapeHtml(String(nummer)) + '</p>' +
+          '<p><strong>Type:</strong> ' + escapeHtml(String(type)) + '</p>' +
+        '</div>'
+      );
+    }
+  });
+
+  fetch('data/farleder.geojson')
+    .then(function (res) {
+      if (!res.ok) throw new Error('Kunne ikke laste farleder.geojson');
+      return res.json();
+    })
+    .then(function (geojson) {
+      layer.addData(geojson);
+    })
+    .catch(function () {
+      console.warn('Kunne ikke laste farleder fra data/farleder.geojson.');
+    });
+
+  return layer;
+}
+
 function firstValue(value) {
   if (Array.isArray(value)) {
     return value.length > 0 ? value[0] : null;
