@@ -6,7 +6,11 @@
 
 ## Video av systemet
 
-[▶ Se demo-video her](https://github.com/FanuelHab/IS218-Gruppe-14/raw/refs/heads/main/assets/Nødhavner%20i%20Norge,%2003.05.26.mp4)
+- **Sluttversjon (semesterprosjekt / innlevering):**  
+  [▶ Se demo-video (Nødhavn i Norge, 03.05.26)](https://github.com/FanuelHab/IS218-Gruppe-14/raw/refs/heads/main/assets/Nødhavner%20i%20Norge,%2003.05.26.mp4)
+
+- **Etter oppgave 2 (historisk demo):**  
+  [▶ Se demo-video (ProsjektGif)](https://raw.githubusercontent.com/FanuelHab/IS218-Gruppe-14/main/assets/Gif/ProsjektGif.mp4)
 
 ## Oppgave 2: Beskrivelse av utvidelsen (romlig funksjonalitet)
 
